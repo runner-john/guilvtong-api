@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>桂律通 · 涉外法律服务 AI 演示</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+    .header {
+      background: linear-gradient(135deg, #0f766e 0%, #4338ca 100%);
+      padding: 24px 40px;
+      text-align: center;
+    }
+    .header h1 { font-size: 28px; font-weight: 800; color: #fff; }
+    .header p { margin-top: 6px; font-size: 14px; color: #ccfbf1; opacity: 0.9; }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 30px 20px;
+    }
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 12px 16px;
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: #0f766e;
+      color: #fff;
+    }
+    .tab-btn:hover:not(.active) {
+      background: #334155;
+      color: #e2e8f0;
+    }
+    .panel {
+      display: none;
+      background: #1e293b;
+      border-radius: 16px;
+      border: 1px solid #334155;
+      padding: 30px;
+    }
+    .panel.active { display: block; }
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    textarea, input, select {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
+    }
+    textarea:focus, input:focus, select:focus {
+      outline: none;
+      border-color: #0f766e;
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.2);
+    }
+    textarea { min-height: 120px; }
+    .flex-row { display: flex; gap: 12px; }
+    .flex-row > * { flex: 1; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 28px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #0f766e 0%, #4338ca 100%);
+      color: #fff;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-outline {
+      background: transparent;
+      color: #0f766e;
+      border: 2px solid #0f766e;
+    }
+    .result-box {
+      margin-top: 24px;
+      padding: 24px;
+      background: #0f172a;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      white-space: pre-wrap;
+      font-size: 14px;
+      line-height: 1.7;
+      min-height: 60px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .result-box:empty::before {
+      content: 'AI 回复将显示在这里...';
+      color: #475569;
+    }
+    .streaming-cursor::after {
+      content: '▊';
+      animation: blink 1s infinite;
+      color: #0f766e;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-stream { background: #4338ca33; color: #818cf8; }
+    .badge-on { background: #0f766e33; color: #2dd4bf; }
+    .badge-off { background: #ef444433; color: #f87171; }
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding: 10px 16px;
+      background: #0f172a;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+    }
+    .status-dot.online { background: #22c55e; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>⚖️ 桂律通 · 涉外法律服务 AI 演示</h1>
+    <p>中国-东盟跨境民商事争议双语调解 | AI 智能法律研判 | 文书翻译 | 合同分析</p>
+  </div>
+
+  <div class="container">
+    <!-- 状态栏 -->
+    <div class="status-bar">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">⏳ 检查连接...</span>
+      <span style="margin-left:auto;font-weight:700;" id="modelName"></span>
+    </div>
+
+    <!-- 选项卡 -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="translate">🌐 文书翻译</button>
+      <button class="tab-btn" data-tab="contract">📋 合同分析</button>
+      <button class="tab-btn" data-tab="lawyer">👨‍⚖️ 律师匹配</button>
+      <button class="tab-btn" data-tab="opinion">📝 法律意见书</button>
+    </div>
+
+    <!-- ========== 翻译面板 ========== -->
+    <div class="panel active" id="panel-translate">
+      <div class="form-group">
+        <label>📄 输入待翻译的法律文本</label>
+        <textarea id="translateText" placeholder="请输入法律文书内容，例如：&#10;&#10;第一条：基于友好协商，各方一致同意就不可抗力导致的承运及清关延迟启动争议化解案。双方将本着折中分担精神进行扣减和释付。&#10;第二条：乙方同意在签署日后3个工作日内向甲方支付原15万元尾款的60%，即9万元人民币整作为全案终结清算金。"></textarea>
+      </div>
+      <div class="flex-row">
+        <div class="form-group">
+          <label>源语言</label>
+          <select id="sourceLang">
+            <option value="auto">自动检测</option>
+            <option value="zh">中文</option>
+            <option value="vi">越南语</option>
+            <option value="th">泰语</option>
+            <option value="en">英语</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>目标语言</label>
+          <select id="targetLang">
+            <option value="vi">越南语</option>
+            <option value="zh" selected>中文</option>
+            <option value="th">泰语</option>
+            <option value="en">英语</option>
+          </select>
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="streamTranslate" checked> 实时流式输出
+          </label>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="doTranslate()">🔄 开始翻译</button>
+      <div class="result-box" id="translateResult"></div>
+    </div>
+
+    <!-- ========== 合同分析面板 ========== -->
+    <div class="panel" id="panel-contract">
+      <div class="form-group">
+        <label>📋 粘贴合同文本进行分析</label>
+        <textarea id="contractText" placeholder="请粘贴完整的合同文本内容..." style="min-height:200px;"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="doParseContract()">🔍 智能分析合同</button>
+      <div class="result-box" id="contractResult"></div>
+    </div>
+
+    <!-- ========== 律师匹配面板 ========== -->
+    <div class="panel" id="panel-lawyer">
+      <div class="flex-row">
+        <div class="form-group">
+          <label>争议类型</label>
+          <select id="disputeType">
+            <option value="跨境贸易">跨境贸易纠纷</option>
+            <option value="边境投资">边境投资争议</option>
+            <option value="知识产权">知识产权侵权</option>
+            <option value="劳动用工">跨境劳动用工</option>
+            <option value="婚姻家庭">跨境婚姻家庭</option>
+            <option value="货运物流">国际货运物流</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>涉及地区</label>
+          <select id="region">
+            <option value="中越边境">中越边境</option>
+            <option value="中泰">中泰</option>
+            <option value="中国-东盟">中国-东盟广泛区域</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>案件简要描述</label>
+        <textarea id="caseDesc" placeholder="简要描述您的案件情况..."></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="doLawyerMatch()">🎯 智能匹配律师</button>
+      <div class="result-box" id="lawyerResult"></div>
+    </div>
+
+    <!-- ========== 法律意见书面板 ========== -->
+    <div class="panel" id="panel-opinion">
+      <div class="form-group">
+        <label>📝 案件信息（越详细，意见书质量越高）</label>
+        <textarea id="caseInfo" placeholder="请详细描述案件信息，包括：&#10;1. 当事人信息&#10;2. 案件事实&#10;3. 争议焦点&#10;4. 相关证据&#10;5. 适用法律条款..." style="min-height:180px;"></textarea>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;cursor:pointer;font-size:13px;">
+        <input type="checkbox" id="streamOpinion" checked> 实时流式生成
+      </label>
+      <button class="btn btn-primary" onclick="doGenerateOpinion()">📄 生成法律意见书</button>
+      <div class="result-box" id="opinionResult"></div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // 初始化
+    // ============================================================
+    const API_BASE = '';  // 空 = 同源，生产环境改为实际 URL
+
+    // 选项卡切换
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // 健康检查
+    async function checkHealth() {
+      try {
+        const res = await fetch(API_BASE + '/api/health');
+        const data = await res.json();
+        const dot = document.getElementById('statusDot');
+        const txt = document.getElementById('statusText');
+        const model = document.getElementById('modelName');
+        if (data.api_configured) {
+          dot.className = 'status-dot online';
+          txt.textContent = '✅ 后端已连接 · AI就绪';
+        } else {
+          dot.className = 'status-dot';
+          txt.textContent = '⚠️ 后端已连接 · 请配置 DOUBAO_API_KEY';
+        }
+        model.textContent = '🤖 ' + data.model;
+      } catch (e) {
+        document.getElementById('statusText').textContent = '❌ 后端未连接';
+      }
+    }
+    checkHealth();
+
+    // ============================================================
+    // 通用流式处理
+    // ============================================================
+    async function streamFetch(url, body, resultEl) {
+      resultEl.textContent = '';
+      resultEl.classList.add('streaming-cursor');
+      try {
+        const res = await fetch(API_BASE + url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...body, stream: true })
+        });
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const raw = line.slice(6).trim();
+              if (raw === '[DONE]') break;
+              try {
+                const j = JSON.parse(raw);
+                if (j.error) { resultEl.textContent += '\n[错误] ' + j.error; }
+                if (j.content) resultEl.textContent += j.content;
+              } catch {}
+            }
+          }
+        }
+        resultEl.classList.remove('streaming-cursor');
+      } catch (e) {
+        resultEl.textContent = '请求失败: ' + e.message;
+        resultEl.classList.remove('streaming-cursor');
+      }
+    }
+
+    // ============================================================
+    // API 调用
+    // ============================================================
+    async function doTranslate() {
+      const text = document.getElementById('translateText').value.trim();
+      if (!text) return alert('请输入待翻译文本');
+      const el = document.getElementById('translateResult');
+      const stream = document.getElementById('streamTranslate').checked;
+      if (stream) {
+        await streamFetch('/api/translate', {
+          text,
+          sourceLang: document.getElementById('sourceLang').value,
+          targetLang: document.getElementById('targetLang').value
+        }, el);
+      } else {
+        el.textContent = '⏳ 翻译中...';
+        const res = await fetch(API_BASE + '/api/translate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text,
+            sourceLang: document.getElementById('sourceLang').value,
+            targetLang: document.getElementById('targetLang').value,
+            stream: false
+          })
+        });
+        const data = await res.json();
+        el.textContent = data.success ? data.translatedText : '错误: ' + data.error;
+      }
+    }
+
+    async function doParseContract() {
+      const text = document.getElementById('contractText').value.trim();
+      if (!text) return alert('请输入合同文本');
+      const el = document.getElementById('contractResult');
+      el.textContent = '⏳ 分析中...';
+      const res = await fetch(API_BASE + '/api/parse-contract', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contractText: text })
+      });
+      const data = await res.json();
+      el.textContent = data.success ? JSON.stringify(data.analysis, null, 2) : '错误: ' + data.error;
+    }
+
+    async function doLawyerMatch() {
+      const desc = document.getElementById('caseDesc').value.trim();
+      const type = document.getElementById('disputeType').value;
+      if (!desc && !type) return alert('请填写案件描述');
+      const el = document.getElementById('lawyerResult');
+      el.textContent = '⏳ 匹配中...';
+      const res = await fetch(API_BASE + '/api/lawyer-match', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caseDescription: desc,
+          disputeType: type,
+          region: document.getElementById('region').value
+        })
+      });
+      const data = await res.json();
+      el.textContent = data.success ? JSON.stringify(data, null, 2) : '错误: ' + data.error;
+    }
+
+    async function doGenerateOpinion() {
+      const info = document.getElementById('caseInfo').value.trim();
+      if (!info) return alert('请输入案件信息');
+      const el = document.getElementById('opinionResult');
+      const stream = document.getElementById('streamOpinion').checked;
+      if (stream) {
+        await streamFetch('/api/generate-opinion', { caseInfo: info }, el);
+      } else {
+        el.textContent = '⏳ 生成中...';
+        const res = await fetch(API_BASE + '/api/generate-opinion', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ caseInfo: info, stream: false })
+        });
+        const data = await res.json();
+        el.textContent = data.success ? data.opinion : '错误: ' + data.error;
+      }
+    }
+
+    // ============================================================
+    // 填入示例文本
+    // ============================================================
+    // 默认翻译示例
+    document.getElementById('translateText').value =
+      '第一条：基于友好协商，各方一致同意就不可抗力导致的承运及清关延迟启动争议化解案。对于发生的火龙果尾款，双方将本着折中分担精神进行扣减和释付。\n\n第二条：乙方同意在签署日后3个工作日内向甲方支付原15万元尾款的60%，即9万元人民币整作为全案终结清算金。';
+
+    document.getElementById('contractText').value =
+      '关于香蕉/火龙果/椰子跨境商事采购退款与折让协议\n\n甲方（外方）：越南胡志明市绿色进出口股份有限公司\n乙方（中方）：广西恒通农产进出口贸易有限公司\n\n第一条：基于友好协商，各方一致同意就不可抗力导致的承运及清关延迟启动争议化解案。\n第二条：乙方同意在签署日后3个工作日内向甲方支付原15万元尾款的60%，即9万元人民币整作为全案终结清算金。';
+
+    document.getElementById('caseDesc').value =
+      '中越火龙果跨境贸易尾款纠纷。越方已完成交货但中方因台风不可抗力延迟清关导致部分农产品损毁，中方扣减尾款，越方主张全额支付。涉及金额15万元人民币。';
+
+    document.getElementById('caseInfo').value =
+      '案由：中越跨境火龙果贸易尾款纠纷\n当事人：甲方-越南胡志明市绿色进出口股份有限公司（卖方），乙方-广西恒通农产进出口贸易有限公司（买方）\n事实：2025年6月，双方签订50吨火龙果采购合同，总价30万元。越方交货后，中方因台风导致清关延迟，部分货物腐烂损毁。中方主张扣减尾款15万元，越方主张全额支付。\n争议焦点：1. 台风是否构成不可抗力？2. 货物损毁风险由谁承担？3. 尾款应付金额如何计算？';
+  </script>
+</body>
+</html>
